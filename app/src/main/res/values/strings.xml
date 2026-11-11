@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TV Mouse</string>
+    <string name="share_label">Type on TV</string>
+    <string name="notification_channel">TV connection</string>
+    <string name="stop">Stop</string>
+</resources>

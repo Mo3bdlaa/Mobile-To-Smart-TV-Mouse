@@ -1,6 +1,7 @@
 # Design: Android phone as a smart TV touchpad, keyboard, and mic
 
-Status: **design / discussion**. Nothing here is implemented yet.
+Status: **Bluetooth HID touchpad + keyboard implemented** (phase 1). The microphone is
+**out of scope for now**. Sections 3 and 4 are kept for reference only.
 
 ## 1. Goal
 
