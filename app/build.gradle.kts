@@ -62,6 +62,11 @@ android {
         compose = true
         buildConfig = true
     }
+
+    testOptions {
+        // Android calls such as Log.i do nothing in JVM unit tests instead of throwing.
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 kotlin {
@@ -82,4 +87,5 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20250517") // real org.json for JVM unit tests
 }

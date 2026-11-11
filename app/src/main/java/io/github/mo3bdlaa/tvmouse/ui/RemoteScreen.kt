@@ -36,7 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import io.github.mo3bdlaa.tvmouse.hid.Consumer
-import io.github.mo3bdlaa.tvmouse.hid.HidManager
+import io.github.mo3bdlaa.tvmouse.Input
 import io.github.mo3bdlaa.tvmouse.hid.Key
 
 @Composable
@@ -50,36 +50,36 @@ fun RemoteScreen(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            RemoteButton(Icons.AutoMirrored.Filled.ArrowBack, "Back") { HidManager.pressConsumer(Consumer.BACK) }
-            RemoteButton(Icons.Filled.Home, "Home") { HidManager.pressConsumer(Consumer.HOME) }
-            RemoteButton(Icons.Filled.Menu, "Menu") { HidManager.pressKey(Key.MENU) }
-            RemoteButton(Icons.Filled.Search, "Search") { HidManager.pressConsumer(Consumer.SEARCH) }
+            RemoteButton(Icons.AutoMirrored.Filled.ArrowBack, "Back") { Input.pressConsumer(Consumer.BACK) }
+            RemoteButton(Icons.Filled.Home, "Home") { Input.pressConsumer(Consumer.HOME) }
+            RemoteButton(Icons.Filled.Menu, "Menu") { Input.pressKey(Key.MENU) }
+            RemoteButton(Icons.Filled.Search, "Search") { Input.pressConsumer(Consumer.SEARCH) }
         }
 
         // D-pad: arrow keys + Enter work for navigating most TV menus.
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            DpadButton(Icons.Filled.KeyboardArrowUp, "Up") { HidManager.pressKey(Key.UP) }
+            DpadButton(Icons.Filled.KeyboardArrowUp, "Up") { Input.pressKey(Key.UP) }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                DpadButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Left") { HidManager.pressKey(Key.LEFT) }
+                DpadButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Left") { Input.pressKey(Key.LEFT) }
                 FilledIconButton(
-                    onClick = { HidManager.pressKey(Key.ENTER) },
+                    onClick = { Input.pressKey(Key.ENTER) },
                     modifier = Modifier.padding(8.dp).size(88.dp),
                     shape = CircleShape,
                 ) { Text("OK", style = MaterialTheme.typography.titleLarge) }
-                DpadButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Right") { HidManager.pressKey(Key.RIGHT) }
+                DpadButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Right") { Input.pressKey(Key.RIGHT) }
             }
-            DpadButton(Icons.Filled.KeyboardArrowDown, "Down") { HidManager.pressKey(Key.DOWN) }
+            DpadButton(Icons.Filled.KeyboardArrowDown, "Down") { Input.pressKey(Key.DOWN) }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            RemoteButton(Icons.AutoMirrored.Filled.VolumeDown, "Volume down") { HidManager.pressConsumer(Consumer.VOLUME_DOWN) }
-            RemoteButton(Icons.AutoMirrored.Filled.VolumeOff, "Mute") { HidManager.pressConsumer(Consumer.MUTE) }
-            RemoteButton(Icons.AutoMirrored.Filled.VolumeUp, "Volume up") { HidManager.pressConsumer(Consumer.VOLUME_UP) }
+            RemoteButton(Icons.AutoMirrored.Filled.VolumeDown, "Volume down") { Input.pressConsumer(Consumer.VOLUME_DOWN) }
+            RemoteButton(Icons.AutoMirrored.Filled.VolumeOff, "Mute") { Input.pressConsumer(Consumer.MUTE) }
+            RemoteButton(Icons.AutoMirrored.Filled.VolumeUp, "Volume up") { Input.pressConsumer(Consumer.VOLUME_UP) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            RemoteButton(Icons.Filled.SkipPrevious, "Previous") { HidManager.pressConsumer(Consumer.PREVIOUS) }
-            RemoteButton(Icons.Filled.PlayArrow, "Play / pause") { HidManager.pressConsumer(Consumer.PLAY_PAUSE) }
-            RemoteButton(Icons.Filled.SkipNext, "Next") { HidManager.pressConsumer(Consumer.NEXT) }
+            RemoteButton(Icons.Filled.SkipPrevious, "Previous") { Input.pressConsumer(Consumer.PREVIOUS) }
+            RemoteButton(Icons.Filled.PlayArrow, "Play / pause") { Input.pressConsumer(Consumer.PLAY_PAUSE) }
+            RemoteButton(Icons.Filled.SkipNext, "Next") { Input.pressConsumer(Consumer.NEXT) }
         }
         Spacer(Modifier.size(8.dp))
         Text(

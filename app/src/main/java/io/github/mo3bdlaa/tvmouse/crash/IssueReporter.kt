@@ -1,8 +1,10 @@
 package io.github.mo3bdlaa.tvmouse.crash
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import io.github.mo3bdlaa.tvmouse.BuildConfig
 import java.net.URLEncoder
 
@@ -49,7 +51,12 @@ object IssueReporter {
     private fun open(context: Context, title: String, body: String, label: String) {
         val url = "https://github.com/${BuildConfig.GITHUB_REPO}/issues/new" +
             "?labels=${encode(label)}&title=${encode(title)}&body=${encode(body)}"
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: ActivityNotFoundException) {
+            // Many TVs have no browser. Report from the phone instead.
+            Toast.makeText(context, "No web browser here. Report the problem from your phone.", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun encode(value: String) = URLEncoder.encode(value, "UTF-8").replace("+", "%20")

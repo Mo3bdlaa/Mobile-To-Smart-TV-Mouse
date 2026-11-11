@@ -1,10 +1,12 @@
 package io.github.mo3bdlaa.tvmouse
 
 import android.Manifest
+import android.app.UiModeManager
 import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -12,30 +14,27 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -63,16 +62,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.mo3bdlaa.tvmouse.crash.CrashReporter
 import io.github.mo3bdlaa.tvmouse.crash.IssueReporter
 import io.github.mo3bdlaa.tvmouse.hid.HidManager
 import io.github.mo3bdlaa.tvmouse.hid.HidService
+import io.github.mo3bdlaa.tvmouse.net.NetClient
+import io.github.mo3bdlaa.tvmouse.net.TvStore
+import io.github.mo3bdlaa.tvmouse.tv.TvReceiverScreen
 import io.github.mo3bdlaa.tvmouse.ui.ConnectScreen
 import io.github.mo3bdlaa.tvmouse.ui.KeyboardScreen
+import io.github.mo3bdlaa.tvmouse.ui.PendingCrashDialog
 import io.github.mo3bdlaa.tvmouse.ui.RemoteScreen
 import io.github.mo3bdlaa.tvmouse.ui.TouchpadScreen
 import io.github.mo3bdlaa.tvmouse.ui.TouchpadSettings
 import io.github.mo3bdlaa.tvmouse.ui.TvMouseTheme
+import io.github.mo3bdlaa.tvmouse.ui.UpdateDialog
+import io.github.mo3bdlaa.tvmouse.ui.netStatusTitle
 import io.github.mo3bdlaa.tvmouse.ui.statusTitle
 import io.github.mo3bdlaa.tvmouse.update.Updater
 import kotlinx.coroutines.launch
@@ -85,10 +89,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        handleShare(intent)
+        val onTv = isTv(this)
+        if (!onTv) {
+            Input.init(this)
+            handleShare(intent)
+        }
         setContent {
             TvMouseTheme {
-                MainScreen(sharedText = sharedText.value, onSharedTextUsed = { sharedText.value = null })
+                if (onTv) {
+                    TvReceiverScreen()
+                } else {
+                    PhoneScreen(sharedText = sharedText.value, onSharedTextUsed = { sharedText.value = null })
+                }
             }
         }
     }
@@ -103,16 +115,22 @@ class MainActivity : ComponentActivity() {
             intent.getStringExtra(Intent.EXTRA_TEXT)?.let { sharedText.value = it }
         }
     }
+
+    companion object {
+        fun isTv(context: Context): Boolean =
+            context.getSystemService(UiModeManager::class.java)?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION ||
+                context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+    }
 }
 
 private enum class Tab(val label: String, val icon: ImageVector) {
-    CONNECT("Connect", Icons.Filled.Bluetooth),
+    CONNECT("Connect", Icons.Filled.Tv),
     TOUCHPAD("Touchpad", Icons.Filled.TouchApp),
     KEYBOARD("Keyboard", Icons.Filled.Keyboard),
     REMOTE("Remote", Icons.Filled.SettingsRemote),
 }
 
-private fun requiredPermissions(): Array<String> = buildList {
+private fun bluetoothPermissions(): Array<String> = buildList {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         add(Manifest.permission.BLUETOOTH_CONNECT)
         add(Manifest.permission.BLUETOOTH_ADVERTISE)
@@ -122,54 +140,72 @@ private fun requiredPermissions(): Array<String> = buildList {
 
 /** Notifications are optional; only the Bluetooth permissions are required. */
 private fun hasBluetoothPermissions(context: Context): Boolean =
-    requiredPermissions()
+    bluetoothPermissions()
         .filter { it != Manifest.permission.POST_NOTIFICATIONS }
         .all { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MainScreen(sharedText: String?, onSharedTextUsed: () -> Unit) {
+private fun PhoneScreen(sharedText: String?, onSharedTextUsed: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
-    val state by HidManager.state.collectAsStateWithLifecycle()
+    val mode by Input.mode.collectAsStateWithLifecycle()
+    val btState by HidManager.state.collectAsStateWithLifecycle()
+    val netState by NetClient.state.collectAsStateWithLifecycle()
 
-    var hasPermissions by remember { mutableStateOf(hasBluetoothPermissions(context)) }
+    var hasBtPermissions by remember { mutableStateOf(hasBluetoothPermissions(context)) }
     var tab by rememberSaveable {
-        mutableStateOf(if (HidManager.lastDeviceAddress(context) != null) Tab.TOUCHPAD else Tab.CONNECT)
+        val known = TvStore.last(context) != null || HidManager.lastDeviceAddress(context) != null
+        mutableStateOf(if (known) Tab.TOUCHPAD else Tab.CONNECT)
     }
     var settings by remember { mutableStateOf(TouchpadSettings.load(context)) }
     var showMenu by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var update by remember { mutableStateOf<Updater.Release?>(null) }
-    var downloadProgress by remember { mutableStateOf<Float?>(null) }
-    var pendingCrash by remember { mutableStateOf(CrashReporter.pendingReport(context)) }
 
     fun message(text: String) {
         scope.launch { snackbar.showSnackbar(text) }
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) {
-        hasPermissions = hasBluetoothPermissions(context)
-        if (hasPermissions) HidService.start(context)
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        hasBtPermissions = hasBluetoothPermissions(context)
+        if (hasBtPermissions && Input.mode.value == Input.Mode.BLUETOOTH) HidService.start(context)
     }
     val enableBluetooth = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
     val discoverable = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
 
-    LaunchedEffect(Unit) {
-        if (hasPermissions) HidService.start(context) else permissionLauncher.launch(requiredPermissions())
-        if (!BuildConfig.DEBUG) {
-            (Updater.check() as? Updater.Result.Available)?.let { update = it.release }
+    // Start whichever connection the chosen mode needs.
+    LaunchedEffect(mode) {
+        when (mode) {
+            Input.Mode.WIFI -> {
+                HidService.stop(context)
+                if (!NetClient.isConnected && NetClient.state.value.status == NetClient.Status.IDLE) {
+                    TvStore.last(context)?.let(NetClient::connect)
+                }
+            }
+            Input.Mode.BLUETOOTH -> {
+                NetClient.disconnect()
+                if (hasBtPermissions) HidService.start(context) else permissionLauncher.launch(bluetoothPermissions())
+            }
         }
+    }
+    LaunchedEffect(Unit) {
+        if (!BuildConfig.DEBUG) (Updater.check() as? Updater.Result.Available)?.let { update = it.release }
+    }
+    LaunchedEffect(Unit) {
+        NetClient.notices.collect { message(it) }
     }
     LaunchedEffect(sharedText) {
         if (sharedText != null) tab = Tab.KEYBOARD
     }
+    val connected = if (mode == Input.Mode.WIFI) {
+        netState.status == NetClient.Status.CONNECTED
+    } else {
+        btState.status == HidManager.Status.CONNECTED
+    }
     var wasConnected by remember { mutableStateOf(false) }
-    LaunchedEffect(state.status) {
-        val connected = state.status == HidManager.Status.CONNECTED
+    LaunchedEffect(connected) {
         if (connected && !wasConnected && tab == Tab.CONNECT) tab = Tab.TOUCHPAD
         wasConnected = connected
     }
@@ -180,7 +216,10 @@ private fun MainScreen(sharedText: String?, onSharedTextUsed: () -> Unit) {
                 title = {
                     Column {
                         Text(tab.label)
-                        Text(statusTitle(state), style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            if (mode == Input.Mode.WIFI) netStatusTitle(netState) else statusTitle(btState),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
                 },
                 actions = {
@@ -204,8 +243,9 @@ private fun MainScreen(sharedText: String?, onSharedTextUsed: () -> Unit) {
                             showMenu = false
                             IssueReporter.openBugIssue(context)
                         })
-                        DropdownMenuItem(text = { Text("Stop and exit") }, onClick = {
+                        DropdownMenuItem(text = { Text("Disconnect and exit") }, onClick = {
                             showMenu = false
+                            NetClient.disconnect()
                             HidService.stop(context)
                             (context as? ComponentActivity)?.finishAndRemoveTask()
                         })
@@ -238,9 +278,11 @@ private fun MainScreen(sharedText: String?, onSharedTextUsed: () -> Unit) {
             .consumeWindowInsets(padding)
         when (tab) {
             Tab.CONNECT -> ConnectScreen(
-                state = state,
-                hasPermissions = hasPermissions,
-                onRequestPermissions = { permissionLauncher.launch(requiredPermissions()) },
+                mode = mode,
+                onModeChange = Input::setMode,
+                btState = btState,
+                hasBtPermissions = hasBtPermissions,
+                onRequestPermissions = { permissionLauncher.launch(bluetoothPermissions()) },
                 onEnableBluetooth = { enableBluetooth.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)) },
                 onMakeDiscoverable = {
                     discoverable.launch(
@@ -271,81 +313,8 @@ private fun MainScreen(sharedText: String?, onSharedTextUsed: () -> Unit) {
             onDismiss = { showSettings = false },
         )
     }
-
-    pendingCrash?.let { report ->
-        AlertDialog(
-            onDismissRequest = {
-                CrashReporter.clearPending(context)
-                pendingCrash = null
-            },
-            title = { Text("TV Mouse crashed last time") },
-            text = { Text("Do you want to report it on GitHub so it can be fixed? You can review the report before posting.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    IssueReporter.openCrashIssue(context, report)
-                    CrashReporter.clearPending(context)
-                    pendingCrash = null
-                }) { Text("Report") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    CrashReporter.clearPending(context)
-                    pendingCrash = null
-                }) { Text("Not now") }
-            },
-        )
-    }
-
-    update?.let { release ->
-        val downloading = downloadProgress != null
-        AlertDialog(
-            onDismissRequest = { if (!downloading) update = null },
-            title = { Text("Update available: ${release.version}") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("You have ${BuildConfig.VERSION_NAME}.")
-                    if (release.notes.isNotBlank()) {
-                        Text(
-                            release.notes,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.heightIn(max = 240.dp).verticalScroll(rememberScrollState()),
-                        )
-                    }
-                    downloadProgress?.let { progress ->
-                        if (progress >= 0f) {
-                            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
-                        } else {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(enabled = !downloading, onClick = {
-                    if (!Updater.canInstall(context)) {
-                        Updater.openInstallPermissionSettings(context)
-                        message("Allow TV Mouse to install updates, then tap Update again.")
-                        return@TextButton
-                    }
-                    scope.launch {
-                        downloadProgress = 0f
-                        try {
-                            val apk = Updater.download(context, release) { downloadProgress = it }
-                            Updater.install(context, apk)
-                            update = null
-                        } catch (e: Exception) {
-                            message("Download failed: ${e.message}")
-                        } finally {
-                            downloadProgress = null
-                        }
-                    }
-                }) { Text("Update") }
-            },
-            dismissButton = {
-                TextButton(enabled = !downloading, onClick = { update = null }) { Text("Later") }
-            },
-        )
-    }
+    update?.let { release -> UpdateDialog(release, onDismiss = { update = null }, onMessage = ::message) }
+    PendingCrashDialog()
 }
 
 @Composable

@@ -1,7 +1,10 @@
 # Design: Android phone as a smart TV touchpad, keyboard, and mic
 
-Status: **Bluetooth HID touchpad + keyboard implemented** (phase 1). The microphone is
-**out of scope for now**. Sections 3 and 4 are kept for reference only.
+Status:
+- **Implemented:** Bluetooth HID mode (option A) and **Wi-Fi mode with a companion app on
+  Android TV** (option C, now the recommended mode). Real-world testing showed some TVs don't
+  list a phone in their Bluetooth scan. See the README for how Wi-Fi mode works and is secured.
+- **Out of scope for now:** the microphone. Sections 3 and 4 are kept for reference only.
 
 ## 1. Goal
 

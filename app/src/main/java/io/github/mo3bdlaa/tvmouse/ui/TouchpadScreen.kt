@@ -33,7 +33,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import io.github.mo3bdlaa.tvmouse.hid.HidManager
+import io.github.mo3bdlaa.tvmouse.Input
 import io.github.mo3bdlaa.tvmouse.hid.MouseButton
 import kotlin.math.hypot
 import kotlin.math.min
@@ -93,9 +93,9 @@ private fun HoldButton(label: String, button: Int, modifier: Modifier) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false).consume()
                     pressed = true
-                    HidManager.setButton(button, true)
+                    Input.setButton(button, true)
                     waitForUpOrCancellation()
-                    HidManager.setButton(button, false)
+                    Input.setButton(button, false)
                     pressed = false
                 }
             },
@@ -121,7 +121,7 @@ private class MotionAccumulator {
         val y = restY.toInt()
         restX -= x
         restY -= y
-        if (x != 0 || y != 0) HidManager.moveMouse(x, y)
+        if (x != 0 || y != 0) Input.moveMouse(x, y)
     }
 
     fun scroll(dxDp: Float, dyDp: Float, s: TouchpadSettings) {
@@ -134,7 +134,7 @@ private class MotionAccumulator {
         if (stepsX == 0 && stepsY == 0) return
         val direction = if (s.naturalScroll) 1 else -1
         // Wheel: positive scrolls up. Pan: positive scrolls right.
-        HidManager.scroll(wheel = stepsY * direction, pan = -stepsX * direction)
+        Input.scroll(wheel = stepsY * direction, pan = -stepsX * direction)
     }
 
     fun resetScroll() {
@@ -163,7 +163,7 @@ private suspend fun PointerInputScope.touchpadGestures(
             // Double-tap and hold: drag with the left button held down.
             dragging = true
             lastTapUp = 0L
-            HidManager.setButton(MouseButton.LEFT, true)
+            Input.setButton(MouseButton.LEFT, true)
         }
 
         while (true) {
@@ -178,7 +178,7 @@ private suspend fun PointerInputScope.touchpadGestures(
             if (event == null) {
                 // Finger held still: long-press starts a drag.
                 dragging = true
-                HidManager.setButton(MouseButton.LEFT, true)
+                Input.setButton(MouseButton.LEFT, true)
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 continue
             }
@@ -213,12 +213,12 @@ private suspend fun PointerInputScope.touchpadGestures(
         }
 
         when {
-            dragging -> HidManager.setButton(MouseButton.LEFT, false)
+            dragging -> Input.setButton(MouseButton.LEFT, false)
             !moved && lastTime - downTime < TAP_MAX_MS -> {
                 if (maxPointers >= 2) {
-                    HidManager.click(MouseButton.RIGHT)
+                    Input.click(MouseButton.RIGHT)
                 } else {
-                    HidManager.click(MouseButton.LEFT)
+                    Input.click(MouseButton.LEFT)
                     lastTapUp = lastTime
                 }
             }

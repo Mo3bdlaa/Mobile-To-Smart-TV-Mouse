@@ -38,7 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import io.github.mo3bdlaa.tvmouse.hid.HidManager
+import io.github.mo3bdlaa.tvmouse.Input
 import io.github.mo3bdlaa.tvmouse.hid.Key
 import io.github.mo3bdlaa.tvmouse.hid.KeyModifier
 
@@ -65,19 +65,19 @@ fun KeyboardScreen(
     val reportSkipped: (Int) -> Unit = { skipped ->
         if (skipped > 0) {
             onMessage(
-                "$skipped character(s) couldn't be typed. Only characters on an English (US) " +
-                    "keyboard can be sent as key presses.",
+                "$skipped character(s) couldn't be typed. Bluetooth mode only sends English (US) " +
+                    "keyboard characters. Wi-Fi mode types any language.",
             )
         }
     }
 
     fun typeOnTv(text: String) {
-        if (!HidManager.isConnected) {
+        if (!Input.isConnected) {
             onMessage("Not connected to a TV yet.")
             return
         }
-        HidManager.typeText(text, reportSkipped)
-        if (pressEnter) HidManager.pressKey(Key.ENTER)
+        Input.typeText(text, reportSkipped)
+        if (pressEnter) Input.pressKey(Key.ENTER)
     }
 
     Column(
@@ -111,28 +111,28 @@ fun KeyboardScreen(
         )
 
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            KeyChip("Enter") { HidManager.pressKey(Key.ENTER) }
-            KeyChip("⌫ Backspace") { HidManager.pressKey(Key.BACKSPACE) }
-            KeyChip("Del") { HidManager.pressKey(Key.DELETE) }
-            KeyChip("Tab") { HidManager.pressKey(Key.TAB) }
-            KeyChip("Esc") { HidManager.pressKey(Key.ESCAPE) }
-            KeyChip("←") { HidManager.pressKey(Key.LEFT) }
-            KeyChip("→") { HidManager.pressKey(Key.RIGHT) }
-            KeyChip("↑") { HidManager.pressKey(Key.UP) }
-            KeyChip("↓") { HidManager.pressKey(Key.DOWN) }
-            KeyChip("Home") { HidManager.pressKey(Key.HOME) }
-            KeyChip("End") { HidManager.pressKey(Key.END) }
-            KeyChip("PgUp") { HidManager.pressKey(Key.PAGE_UP) }
-            KeyChip("PgDn") { HidManager.pressKey(Key.PAGE_DOWN) }
+            KeyChip("Enter") { Input.pressKey(Key.ENTER) }
+            KeyChip("⌫ Backspace") { Input.pressKey(Key.BACKSPACE) }
+            KeyChip("Del") { Input.pressKey(Key.DELETE) }
+            KeyChip("Tab") { Input.pressKey(Key.TAB) }
+            KeyChip("Esc") { Input.pressKey(Key.ESCAPE) }
+            KeyChip("←") { Input.pressKey(Key.LEFT) }
+            KeyChip("→") { Input.pressKey(Key.RIGHT) }
+            KeyChip("↑") { Input.pressKey(Key.UP) }
+            KeyChip("↓") { Input.pressKey(Key.DOWN) }
+            KeyChip("Home") { Input.pressKey(Key.HOME) }
+            KeyChip("End") { Input.pressKey(Key.END) }
+            KeyChip("PgUp") { Input.pressKey(Key.PAGE_UP) }
+            KeyChip("PgDn") { Input.pressKey(Key.PAGE_DOWN) }
         }
 
         Text("Shortcuts on the TV", style = MaterialTheme.typography.titleSmall)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            KeyChip("Select all") { HidManager.pressKey(Key.A, KeyModifier.CTRL) }
-            KeyChip("Copy") { HidManager.pressKey(Key.C, KeyModifier.CTRL) }
-            KeyChip("Cut") { HidManager.pressKey(Key.X, KeyModifier.CTRL) }
-            KeyChip("Paste") { HidManager.pressKey(Key.V, KeyModifier.CTRL) }
-            KeyChip("Undo") { HidManager.pressKey(Key.Z, KeyModifier.CTRL) }
+            KeyChip("Select all") { Input.pressKey(Key.A, KeyModifier.CTRL) }
+            KeyChip("Copy") { Input.pressKey(Key.C, KeyModifier.CTRL) }
+            KeyChip("Cut") { Input.pressKey(Key.X, KeyModifier.CTRL) }
+            KeyChip("Paste") { Input.pressKey(Key.V, KeyModifier.CTRL) }
+            KeyChip("Undo") { Input.pressKey(Key.Z, KeyModifier.CTRL) }
         }
 
         HorizontalDivider()
@@ -157,7 +157,7 @@ fun KeyboardScreen(
             Button(onClick = { typeOnTv(block) }, enabled = block.isNotEmpty(), modifier = Modifier.weight(1f)) {
                 Text("Type on TV")
             }
-            OutlinedButton(onClick = { HidManager.cancelTyping() }) { Text("Stop") }
+            OutlinedButton(onClick = { Input.cancelTyping() }) { Text("Stop") }
         }
         FilledTonalButton(
             onClick = {
@@ -184,7 +184,7 @@ private fun sendDiff(old: String, new: String, onDone: (Int) -> Unit) {
     var prefix = 0
     val max = minOf(old.length, new.length)
     while (prefix < max && old[prefix] == new[prefix]) prefix++
-    HidManager.backspace(old.length - prefix)
+    Input.backspace(old.length - prefix)
     val added = new.substring(prefix)
-    if (added.isNotEmpty()) HidManager.typeText(added, onDone)
+    if (added.isNotEmpty()) Input.typeText(added, onDone)
 }

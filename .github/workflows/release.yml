@@ -85,7 +85,8 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
           NOTES: ${{ inputs.notes }}
         run: |
-          apk="TV-Mouse-$TAG.apk"
+          # Fixed name so .../releases/latest/download/TV-Mouse.apk always points at the newest build.
+          apk="TV-Mouse.apk"
           cp app/build/outputs/apk/release/app-release.apk "$apk"
           if [ -n "$NOTES" ]; then
             gh release create "$TAG" "$apk" --target "$GITHUB_SHA" --title "TV Mouse $TAG" --notes "$NOTES"

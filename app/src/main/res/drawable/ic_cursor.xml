@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mouse pointer drawn on the TV. The tip is at the top-left corner (0,0). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.2"
+        android:pathData="M0.8,0.8L0.8,19L5.5,14.6L9,22.4L12.4,20.9L8.9,13.3L15.2,13.3Z" />
+</vector>
